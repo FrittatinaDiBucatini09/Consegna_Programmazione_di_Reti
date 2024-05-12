@@ -12,49 +12,53 @@ import threading
 import time
 import sys
 
+
 MAX_ATTEMPTS = 3    # Massimo numero di tentativi
 DELAY = 0.1     # Ritardo tra nuovi tentativi
 BACKLOG = 5     # Coda di backlog
 BUFSIZ = 1024   # Dimensione massima messaggio 1 Kb
 HOST = 'localhost'
 PORT = 8080
-SERVER_CLOSED = "Server: Server disconnected type something to quit..."   # Messaggio di chiusura del server 
+SERVER_CLOSED = "Server: Server disconnected type exit to quit..."   # Messaggio di chiusura del server
 
 server_address = (HOST, PORT)
 
 # Gestione della lista dei client
 client_list = []
 client_list_lock = threading.Lock()
-remove_client_list = []
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   # Server del socket
 
+
 # Gestione del client
 def handle_client(client):
-    name = None 
+    name = None
     
     while True:
         try:
             if not name:    # Il primo messaggio ricevuto indica il nome del client
                 name = client.recv(BUFSIZ).decode("utf8")
                 if name:
-                    print(name + " is ", client.getpeername())
+                    print('\n' + name + " is ", client.getpeername())
                 
             else:
                 message = client.recv(BUFSIZ).decode("utf8")    # Riceve i messaggi dal client
-                
+                if message == 'exit':
+                    disconnect_client(client)
+                    
                 if message:
                     message = name + ": " +  message    # Aggiunge il nome al messaggio
-                    print(message)
-                    
+                    print('\n' + message)
+                
                     send_to_all_clients(message)    # Invia il messaggio a tutti i client connessi
                 
         except Exception as e:  # Un errore di ricezione provoca la disconnessione del client
-            print("Error receiving message: ", e)
+            print("\nError receiving message: ", e)
             
-            with client_list_lock:
-                disconnect_client(client) 
+            with client_list_lock:  # La lista va acceduta in mutua esclusione
+                disconnect_client(client)
             break
+
 
 # Invia il messaggio a tutti i client connessi
 def send_to_all_clients(message):
@@ -70,16 +74,16 @@ def send_to_all_clients(message):
                     break
                 
                 except BrokenPipeError as b:    # Eccezione BrokenPipe provoca la disconnessione
-                    print("Error sending message to: ", str(client.getpeername()))
-                    print("Error type: ", b)
+                    print("\nError sending message to: ", str(client.getpeername()))
+                    print("\nError type: ", b)
                     
                     with client_list_lock:
                         disconnect_client(client)
                     break
                     
                 except Exception as e:  # Eccezione generica provoca un nuovo tentativo
-                    print("Error sending message to: ", e)
-                    print("Error type: ", e)
+                    print("\nError sending message to: ", e)
+                    print("\nError type: ", e)
                     
                     if attempts >= MAX_ATTEMPTS:    # Massimo numero di tentativi raggiunto
                         
@@ -91,8 +95,6 @@ def send_to_all_clients(message):
                         wait()  # Attesa tra un tentativo e il successivo
 
 
-
-
 # Disconnette il client
 def disconnect_client(client):
     if client.fileno() != -1:   # Controlla che la connessione sia ancora attiva
@@ -100,18 +102,19 @@ def disconnect_client(client):
     
     if client in client_list:   # Controlla che il client sia ancora nella client_list
         client_list.remove(client)
-        
-    
-    
 
-# Attesa tra nuovi tentativi      
+
+# Attesa tra nuovi tentativi
 def wait():
     print("\nNew attempt...")
     time.sleep(DELAY)
 
+
 # Chiude il server
 def close_server(event=None):
     close = ''
+    
+    time.sleep(5)
     
     while not close == 'close':     # Messaggio di chiusura
         close = input("\n")
@@ -130,6 +133,7 @@ def close_server(event=None):
     
     sys.exit()
     
+
 
 # main function
 def main():
@@ -154,9 +158,9 @@ def main():
             
         except Exception as e:
             print("\nError during server execution: ", e)
-            break        
+            break
     
     
 if __name__ == "__main__":
-    main()          
-            
+    main()
+                   
