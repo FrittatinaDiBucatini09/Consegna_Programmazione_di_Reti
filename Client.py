@@ -91,7 +91,6 @@ def send_message(event=None):
            message.set("")
            
            if message_to_send == 'exit':    # Chiusura client
-               client_socket.send("has left the chat :(".encode())
                close_client()
                break
            
